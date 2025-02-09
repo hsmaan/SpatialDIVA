@@ -20,10 +20,6 @@ spatialdata = "^0.1.0"
 scikit-learn = "0.24"
 pyitlib = "^0.2.3"
 faiss-cpu = "^1.9.0"
-torch-cluster = { url = "https://data.pyg.org/whl/torch-2.0.0%2Bcu118/torch_cluster-1.6.1%2Bpt20cu118-cp39-cp39-linux_x86_64.whl"}
-torch-scatter = { url = "https://data.pyg.org/whl/torch-2.0.0%2Bcu118/torch_scatter-2.1.1%2Bpt20cu118-cp39-cp39-linux_x86_64.whl"}
-torch-sparse = { url = "https://data.pyg.org/whl/torch-2.0.0%2Bcu118/torch_sparse-0.6.17%2Bpt20cu118-cp39-cp39-linux_x86_64.whl"}
-pyg-lib = {url = "https://data.pyg.org/whl/torch-2.0.0%2Bcu118/pyg_lib-0.2.0%2Bpt20cu118-cp39-cp39-linux_x86_64.whl"}
 scib-metrics = "^0.5.1"
 
 [build-system]
