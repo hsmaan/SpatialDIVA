@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "SpatialDIVA"
+version = "0.1.0"
+description = ""
+authors = ["hsmaan <hassaan.maan@mail.utoronto.ca>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+numpy = "^1.26.4"
+scanpy = "^1.9.8"
+scvi-tools = "^1.1.0.post2"
+seaborn = "^0.13.2"
+torch = { url = "https://download.pytorch.org/whl/cu118/torch-2.0.0%2Bcu118-cp39-cp39-linux_x86_64.whl"}
+ipykernel = "^6.29.2"
+wandb = "^0.16.3"
+scikit-misc = "^0.3.1"
+squidpy = "^1.4.1"
+spatialdata = "^0.1.0"
+scikit-learn = "0.24"
+pyitlib = "^0.2.3"
+faiss-cpu = "^1.9.0"
+torch-cluster = { url = "https://data.pyg.org/whl/torch-2.0.0%2Bcu118/torch_cluster-1.6.1%2Bpt20cu118-cp39-cp39-linux_x86_64.whl"}
+torch-scatter = { url = "https://data.pyg.org/whl/torch-2.0.0%2Bcu118/torch_scatter-2.1.1%2Bpt20cu118-cp39-cp39-linux_x86_64.whl"}
+torch-sparse = { url = "https://data.pyg.org/whl/torch-2.0.0%2Bcu118/torch_sparse-0.6.17%2Bpt20cu118-cp39-cp39-linux_x86_64.whl"}
+pyg-lib = {url = "https://data.pyg.org/whl/torch-2.0.0%2Bcu118/pyg_lib-0.2.0%2Bpt20cu118-cp39-cp39-linux_x86_64.whl"}
+scib-metrics = "^0.5.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
