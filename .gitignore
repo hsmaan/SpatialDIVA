@@ -3,3 +3,4 @@ __pycache__
 *.pdf
 *.log
 *.png 
+lightning_logs
