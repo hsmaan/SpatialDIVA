@@ -12,8 +12,9 @@ from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch import Trainer
 from sklearn.decomposition import PCA
 import umap
+import anndata as ann 
 
-from utils.diva_data import find_knn, return_dataset, dataset_to_dataloader, adata_process
+from utils.diva_data import adata_process
 from models import SpatialDIVA, LitSpatialDIVA
 
 def process_labels(labels, label_type):
@@ -73,7 +74,7 @@ class StDIVA:
         # by default
         distribution_mask = ["neg_binomial"]*counts_dim + ["gaussian"]*hist_dim
 
-        self.model = SpatialDIVA(       
+        self.model = LitSpatialDIVA(
             x_dim = counts_dim + hist_dim,
             y_dims = [y1_dim, y2_dim, y3_dim],
             d_dim = d_dim,
@@ -103,12 +104,17 @@ class StDIVA:
             test_data = test_data
         )
         
-    def add_data(self, adata, train_index, val_index = None, label_key_y1 = None, 
-                 label_key_y2 = None, label_key_y3 = None, label_key_d = None, 
-                 pos_key = None, hist_col_key = "UNI"):
+        self.train_loader = None
+        self.val_loader = None
+        
+    def add_data(self, adata, train_index = None, val_index = None, label_key_y1 = None, 
+                 label_key_y2 = None, label_key_y3 = None, hist_col_key = "UNI"):
+        
+        print("Processing data..")
         
         # Process the anndata object 
-        adata = adata_process(
+        adatas = adata_process(
+            adata_files = adata,
             normalize=False,
             standardize_sct=False,
             standardize_uni=True,
@@ -117,21 +123,39 @@ class StDIVA:
             knn_type="spatial",
         )
         
-        self.train_data = adata[train_index]
-        if val_index is not None:   
+        # Get the union of the HVGs 
+        adata = ann.concat(adatas)
+        
+        # Retain information about highly variable genes from
+        # the individual datasets
+        hvg = adatas[0].var.highly_variable.copy()
+        adata.var["highly_variable"] = hvg
+        
+        if train_index is None and val_index is None:
+            val_pct = 0.1
+            val_index = np.random.choice(adata.shape[0], int(val_pct*adata.shape[0]), replace=False)
+            train_index = np.setdiff1d(np.arange(adata.shape[0]), val_index)
+            self.train_data = adata[train_index]
             self.val_data = adata[val_index]
+        else:
+            self.train_data = adata[train_index]
+            self.val_data = adata[val_index]
+        
+        print("Creating dataloaders..")
             
         # Create the train dataloader 
-        count_data = np.asarray(self.train_data.X)
+        count_data = np.asarray(self.train_data[:, self.train_data.var["highly_variable"]].X)
         hist_cols = [col for col in self.train_data.obs.columns if hist_col_key in col]
-        hist_data = self.train_data.obsm[hist_cols].values
+        hist_data = self.train_data.obs[hist_cols].values
         
         count_hist_data = np.concatenate([count_data, hist_data], axis=1)
         
         st_labels = process_labels(self.train_data.obs[label_key_y1], "categorical")
-        morpho_labels = process_labels(self.train_data.obs[pos_key], "categorical")
+        morpho_labels = process_labels(self.train_data.obs[label_key_y3], "categorical")
         
-        neighbor_data = self.train_data.obsm["X_pca_neighbors_avg"]
+        if label_key_y2 is None:
+            label_key_y2 = "X_pca_neighbors_avg"
+        neighbor_data = self.train_data.obsm[label_key_y2]
         
         spatial_positions = self.train_data.obsm["spatial"]
         
@@ -164,15 +188,16 @@ class StDIVA:
         self.train_loader = torch.utils.data.DataLoader(self.train_dataset, batch_size=128, shuffle=True)
         
         # Do the same for the validation data
-        if self.val_data is not None:
-            count_data_val = np.asarray(self.val_data.X)
+        if val_index is not None:
+            val_data = adata[val_index]
+            count_data_val = np.asarray(val_data[:, val_data.var["highly_variable"]].X)
             hist_cols_val = [col for col in self.val_data.obs.columns if hist_col_key in col]
-            hist_data_val = self.val_data.obsm[hist_cols_val].values
+            hist_data_val = self.val_data.obs[hist_cols_val].values
             
             count_hist_data_val = np.concatenate([count_data_val, hist_data_val], axis=1)
             
             st_labels_val = process_labels(self.val_data.obs[label_key_y1], "categorical")
-            morpho_labels_val = process_labels(self.val_data.obs[pos_key], "categorical")
+            morpho_labels_val = process_labels(self.val_data.obs[label_key_y3], "categorical")
             
             num_classes_morpho = len(np.unique(morpho_labels_val))
             morpho_labels_onehot_val = np.eye(num_classes_morpho)[morpho_labels_val]
@@ -205,15 +230,21 @@ class StDIVA:
             )
             
             self.val_loader = torch.utils.data.DataLoader(self.val_dataset, batch_size=128, shuffle=False)
+            
+        print("Done!")
      
     def train(self, max_epochs = 100, early_stopping = True, patience = 10):
+        
+        print("Starting training..")
+        
         # Train the model using torch lightning 
         trainer = Trainer(
             max_epochs = max_epochs,
             callbacks = [EarlyStopping(monitor="val_loss", patience=patience)] if early_stopping else None
         )
-        
         trainer.fit(self.model, self.train_loader, self.val_loader)
+        
+        print("Training complete!")
         
     def save_model(self, path):
         torch.save(self.model.state_dict(), path)

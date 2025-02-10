@@ -4,8 +4,8 @@ import torch
 import scanpy as sc
 import anndata as ann
 from sklearn.decomposition import PCA
-from torch_geometric.data import Data, Dataset
-from torch_geometric.loader import NeighborLoader
+#from torch_geometric.data import Data, Dataset
+#from torch_geometric.loader import NeighborLoader
 
 
 def find_knn(data_list, k=5):
@@ -73,29 +73,29 @@ def uni_st_knn(st_counts, uni_counts, k=15, standardize=False):
     return knn
 
 
-def return_dataset(st_uni_data, knn, y1, y2, y3, d):
-    # Convert data to torch tensors
-    num_samples, num_neighbors = knn.shape
+# def return_dataset(st_uni_data, knn, y1, y2, y3, d):
+#     # Convert data to torch tensors
+#     num_samples, num_neighbors = knn.shape
 
-    source_nodes = torch.arange(num_samples).repeat_interleave(num_neighbors)
-    target_nodes = torch.tensor(knn).flatten()
+#     source_nodes = torch.arange(num_samples).repeat_interleave(num_neighbors)
+#     target_nodes = torch.tensor(knn).flatten()
 
-    edge_index = torch.stack([source_nodes, target_nodes], dim=0)
+#     edge_index = torch.stack([source_nodes, target_nodes], dim=0)
 
-    # Create a torch geometric dataset object
-    data = Data(x=st_uni_data, edge_index=edge_index, y1=y1, y2=y2, y3=y3, d=d)
-    data.validate()
+#     # Create a torch geometric dataset object
+#     data = Data(x=st_uni_data, edge_index=edge_index, y1=y1, y2=y2, y3=y3, d=d)
+#     data.validate()
 
-    return data
+#    return data
 
 
-def dataset_to_dataloader(dataset, num_neighbors, batch_size, shuffle):
-    # Create a torch geometric loader object
-    loader = NeighborLoader(
-        dataset, num_neighbors=num_neighbors, batch_size=batch_size, shuffle=shuffle
-    )
+# def dataset_to_dataloader(dataset, num_neighbors, batch_size, shuffle):
+#     # Create a torch geometric loader object
+#     loader = NeighborLoader(
+#         dataset, num_neighbors=num_neighbors, batch_size=batch_size, shuffle=shuffle
+#     )
 
-    return loader
+#     return loader
 
 
 def adata_process(

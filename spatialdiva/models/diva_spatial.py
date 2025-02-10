@@ -14,8 +14,8 @@ import umap
 from sklearn.decomposition import PCA 
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
-from torch_geometric.nn import GATConv
-from torch_geometric.nn import Sequential as GCNSequential
+#from torch_geometric.nn import GATConv
+#from torch_geometric.nn import Sequential as GCNSequential
 from torch.special import gammaln
 
 # Set figure parameters
@@ -323,38 +323,38 @@ class qzy(nn.Module):
         logvar_zy = self.fc_logvar_zy(h)
         return mu_zy, logvar_zy
     
-class qzy_spatial(nn.Module):
-    def __init__(self, hidden_layers, x_dim, zy_dim, heads=4, dropout=0.5):
-        # @TODO - expand hidden layers to beyond 2 for later cases
-        super(qzy_spatial, self).__init__()
-        self.hidden_layers = hidden_layers            
-        self.dropout = dropout
+# class qzy_spatial(nn.Module):
+#     def __init__(self, hidden_layers, x_dim, zy_dim, heads=4, dropout=0.5):
+#         # @TODO - expand hidden layers to beyond 2 for later cases
+#         super(qzy_spatial, self).__init__()
+#         self.hidden_layers = hidden_layers            
+#         self.dropout = dropout
     
-        self.conv1 = GATConv(x_dim, hidden_layers[0], heads = heads, dropout = dropout)
-        if len(hidden_layers) > 1:
-            self.conv2 = GATConv(hidden_layers[0] * heads, hidden_layers[1], heads = heads, 
-                                 concat = False, dropout = dropout)
-            self.fc_mu_zy = nn.Linear(hidden_layers[1], zy_dim)
-            self.fc_logvar_zy = nn.Linear(hidden_layers[1], zy_dim)
-        else:
-            self.fc_mu_zy = nn.Linear(hidden_layers[0], zy_dim)
-            self.fc_logvar_zy = nn.Linear(hidden_layers[0], zy_dim)
+#         self.conv1 = GATConv(x_dim, hidden_layers[0], heads = heads, dropout = dropout)
+#         if len(hidden_layers) > 1:
+#             self.conv2 = GATConv(hidden_layers[0] * heads, hidden_layers[1], heads = heads, 
+#                                  concat = False, dropout = dropout)
+#             self.fc_mu_zy = nn.Linear(hidden_layers[1], zy_dim)
+#             self.fc_logvar_zy = nn.Linear(hidden_layers[1], zy_dim)
+#         else:
+#             self.fc_mu_zy = nn.Linear(hidden_layers[0], zy_dim)
+#             self.fc_logvar_zy = nn.Linear(hidden_layers[0], zy_dim)
         
-    def forward(self, x, edge_index):
-        if len(self.hidden_layers) > 1: 
-            x = F.dropout(x, p=self.dropout, training=self.training)
-            x = F.elu(self.conv1(x, edge_index))
-            x = F.dropout(x, p=self.dropout, training=self.training)
-            x = F.elu(self.conv2(x, edge_index))
-            mu_zy = self.fc_mu_zy(x)
-            logvar_zy = self.fc_logvar_zy(x)
-        else:
-            x = F.dropout(x, p=self.dropout, training=self.training)
-            x = F.elu(self.conv1(x, edge_index))
-            mu_zy = self.fc_mu_zy(x)
-            logvar_zy = self.fc_logvar_zy(x)
+#     def forward(self, x, edge_index):
+#         if len(self.hidden_layers) > 1: 
+#             x = F.dropout(x, p=self.dropout, training=self.training)
+#             x = F.elu(self.conv1(x, edge_index))
+#             x = F.dropout(x, p=self.dropout, training=self.training)
+#             x = F.elu(self.conv2(x, edge_index))
+#             mu_zy = self.fc_mu_zy(x)
+#             logvar_zy = self.fc_logvar_zy(x)
+#         else:
+#             x = F.dropout(x, p=self.dropout, training=self.training)
+#             x = F.elu(self.conv1(x, edge_index))
+#             mu_zy = self.fc_mu_zy(x)
+#             logvar_zy = self.fc_logvar_zy(x)
             
-        return mu_zy, logvar_zy
+#         return mu_zy, logvar_zy
     
 # Define auxillary task heads 
 class qd(nn.Module):
@@ -527,7 +527,8 @@ class SpatialDIVA(nn.Module):
         for i in range(self.num_covars_y):
             if i == self.spatial_covar_number:
                 if self.spatial_gnn_encoder:
-                    self.qzy.append(qzy_spatial(hidden_layers_y, x_dim, zy_dims[i]))
+                    raise NotImplementedError("Spatial GNN encoder not yet implemented")
+                    # self.qzy.append(qzy_spatial(hidden_layers_y, x_dim, zy_dims[i]))
                 else:
                     self.qzy.append(qzy(hidden_layers_y, x_dim, zy_dims[i]))
             else:
@@ -948,6 +949,7 @@ class LitSpatialDIVA(L.LightningModule):
             restrict_recon_pos_cutoff = restrict_recon_pos_cutoff,
             distribution_mask = distribution_mask
         )
+        self.model.double()
 
     def train_dataloader(self):
         return DataLoader(self.train_data, batch_size=self.batch_size)
@@ -975,12 +977,12 @@ class LitSpatialDIVA(L.LightningModule):
             edge_index = None
         
         # Move data to device
-        x = x.to(self.device)
-        y1 = y1.to(self.device)
-        y2 = y2.to(self.device)
-        y3 = y3.to(self.device)
-        d = d.to(self.device).unsqueeze(dim=-1)
-        spo_var = spo_var.to(self.device)
+        x = x.to(self.device).double()
+        y1 = y1.to(self.device).double()
+        y2 = y2.to(self.device).double()
+        y3 = y3.to(self.device).double()
+        d = d.to(self.device).unsqueeze(dim=-1).double()
+        spo_var = spo_var.to(self.device).double()
 
         # If your spatial covariate is y2 or spo_var (adjust indexing as appropriate)
         if self.model.spatial_covar_number == 1:
@@ -1068,12 +1070,12 @@ class LitSpatialDIVA(L.LightningModule):
             x, y1, y2, y3, d, spo_var = batch
             edge_index = None
         
-        x = x.to(self.device)
-        y1 = y1.to(self.device)
-        y2 = y2.to(self.device)
-        y3 = y3.to(self.device)
-        d = d.to(self.device).unsqueeze(dim=-1)
-        spo_var = spo_var.to(self.device)
+        x = x.to(self.device).double()
+        y1 = y1.to(self.device).double()
+        y2 = y2.to(self.device).double()
+        y3 = y3.to(self.device).double()
+        d = d.to(self.device).unsqueeze(dim=-1).double()
+        spo_var = spo_var.to(self.device).double()
 
         if self.model.spatial_covar_number == 1:
             y = [y1, spo_var, y3]
