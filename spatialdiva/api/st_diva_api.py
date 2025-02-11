@@ -111,6 +111,9 @@ class StDIVA:
                  label_key_y2 = None, label_key_y3 = None, hist_col_key = "UNI"):
         
         print("Processing data..")
+        self.label_key_y1 = label_key_y1
+        self.label_key_y2 = label_key_y2
+        self.label_key_y3 = label_key_y3
         
         # Process the anndata object 
         adatas = adata_process(
@@ -124,40 +127,34 @@ class StDIVA:
         )
         
         # Get the union of the HVGs 
-        adata = ann.concat(adatas)
+        self.adata = ann.concat(adatas)
         
         # Retain information about highly variable genes from
         # the individual datasets
         hvg = adatas[0].var.highly_variable.copy()
-        adata.var["highly_variable"] = hvg
+        self.adata.var["highly_variable"] = hvg
         
         if train_index is None and val_index is None:
             val_pct = 0.1
-            val_index = np.random.choice(adata.shape[0], int(val_pct*adata.shape[0]), replace=False)
-            train_index = np.setdiff1d(np.arange(adata.shape[0]), val_index)
-            self.train_data = adata[train_index]
-            self.val_data = adata[val_index]
-        else:
-            self.train_data = adata[train_index]
-            self.val_data = adata[val_index]
-        
+            self.val_index = np.random.choice(self.adata.shape[0], int(val_pct*self.adata.shape[0]), replace=False)
+            self.train_index = np.setdiff1d(np.arange(self.adata.shape[0]), val_index)
         print("Creating dataloaders..")
             
-        # Create the train dataloader 
-        count_data = np.asarray(self.train_data[:, self.train_data.var["highly_variable"]].X)
-        hist_cols = [col for col in self.train_data.obs.columns if hist_col_key in col]
-        hist_data = self.train_data.obs[hist_cols].values
+        # Create the train and val dataloaders
+        count_data = np.asarray(self.adata[:, self.adata.var["highly_variable"]].X)
+        hist_cols = [col for col in self.adata.obs.columns if hist_col_key in col]
+        hist_data = self.adata.obs[hist_cols].values
         
         count_hist_data = np.concatenate([count_data, hist_data], axis=1)
         
-        st_labels = process_labels(self.train_data.obs[label_key_y1], "categorical")
-        morpho_labels = process_labels(self.train_data.obs[label_key_y3], "categorical")
+        st_labels = process_labels(self.adata.obs[label_key_y1], "categorical")
+        morpho_labels = process_labels(self.adata.obs[label_key_y3], "categorical")
         
         if label_key_y2 is None:
             label_key_y2 = "X_pca_neighbors_avg"
-        neighbor_data = self.train_data.obsm[label_key_y2]
+        neighbor_data = self.adata.obsm[label_key_y2]
         
-        spatial_positions = self.train_data.obsm["spatial"]
+        spatial_positions = self.adata.obsm["spatial"]
         
         num_classes_morpho = len(np.unique(morpho_labels))
         morpho_labels_onehot = np.eye(num_classes_morpho)[morpho_labels]
@@ -165,7 +162,7 @@ class StDIVA:
         num_classes_st = len(np.unique(st_labels))
         st_labels_onehot = np.eye(num_classes_st)[st_labels]
         
-        batch_labels = process_labels(self.train_data.obs["batch"], "categorical")
+        batch_labels = process_labels(self.adata.obs["batch"], "categorical")
         num_classes_batch = len(np.unique(batch_labels))
         batch_labels_onehot = np.eye(num_classes_batch)[batch_labels]
         
@@ -176,65 +173,24 @@ class StDIVA:
         neighbor_data_tensor = torch.from_numpy(neighbor_data)
         spatial_positions_tensor = torch.from_numpy(spatial_positions)
         
-        self.train_dataset = torch.utils.data.TensorDataset(
+        self.full_datasets = torch.utils.data.TensorDataset(
             count_hist_data_tensor,
             st_labels_tensor,
+            neighbor_data_tensor,
             morpho_labels_tensor,
             batch_labels_tensor,
-            neighbor_data_tensor,
             spatial_positions_tensor
         )
+        
+        # Split the data into train and validation based on the TensorDataset
+        self.train_dataset = torch.utils.data.Subset(self.full_datasets, self.train_index)
+        self.val_dataset = torch.utils.data.Subset(self.full_datasets, self.val_index)
         
         self.train_loader = torch.utils.data.DataLoader(self.train_dataset, batch_size=128, 
                                                         shuffle=True, num_workers=0)
         
-        # Do the same for the validation data
-        if val_index is not None:
-            val_data = adata[val_index]
-            count_data_val = np.asarray(val_data[:, val_data.var["highly_variable"]].X)
-            hist_cols_val = [col for col in self.val_data.obs.columns if hist_col_key in col]
-            hist_data_val = self.val_data.obs[hist_cols_val].values
-            
-            count_hist_data_val = np.concatenate([count_data_val, hist_data_val], axis=1)
-            
-            st_labels_val = process_labels(self.val_data.obs[label_key_y1], "categorical")
-            morpho_labels_val = process_labels(self.val_data.obs[label_key_y3], "categorical")
-            
-            num_classes_morpho = len(np.unique(morpho_labels_val))
-            morpho_labels_onehot_val = np.eye(num_classes_morpho)[morpho_labels_val]
-            
-            num_classes_st = len(np.unique(st_labels_val))
-            st_labels_onehot_val = np.eye(num_classes_st)[st_labels_val]
-            
-            batch_labels_val = process_labels(self.val_data.obs["batch"], "categorical")
-            num_classes_batch = len(np.unique(batch_labels_val))
-            batch_labels_onehot_val = np.eye(num_classes_batch)[batch_labels_val]   
-            
-            count_hist_data_val_tensor = torch.from_numpy(count_hist_data_val)
-            st_labels_val_tensor = torch.from_numpy(st_labels_onehot_val)
-            morpho_labels_val_tensor = torch.from_numpy(morpho_labels_onehot_val)
-            batch_labels_val_tensor = torch.from_numpy(batch_labels_onehot_val)
-            
-            neighbor_data_val = self.val_data.obsm["X_pca_neighbors_avg"]
-            neighbor_data_val_tensor = torch.from_numpy(neighbor_data_val)
-            
-            spatial_positions_val = self.val_data.obsm["spatial"]
-            spatial_positions_val_tensor = torch.from_numpy(spatial_positions_val)  
-            
-            self.val_dataset = torch.utils.data.TensorDataset(
-                count_hist_data_val_tensor,
-                st_labels_val_tensor,
-                morpho_labels_val_tensor,
-                batch_labels_val_tensor,
-                neighbor_data_val_tensor,
-                spatial_positions_val_tensor
-            )
-            
-            self.val_loader = torch.utils.data.DataLoader(
-                self.val_dataset, batch_size=128, shuffle=False, num_workers=0
-            )
-            
-        print("Done!")
+        self.val_loader = torch.utils.data.DataLoader(self.val_dataset, batch_size=128, 
+                                                      shuffle=False, num_workers=0)
      
     def train(self, max_epochs = 100, early_stopping = True, patience = 10):
         
@@ -254,22 +210,19 @@ class StDIVA:
 
     def load_model(self, path):
         self.model.load_state_dict(torch.load(path))
-        
-        
-    def get_embeddings(self, type = "train"):
+              
+    def get_embeddings(self, type = "full"):
         if type == "train":
             loader = torch.utils.data.DataLoader(self.train_dataset, batch_size=128, shuffle=False)
         elif type == "val":
             loader = torch.utils.data.DataLoader(self.val_dataset, batch_size=128, shuffle=False)
+        elif type == "full":
+            loader = torch.utils.data.DataLoader(self.full_datasets, batch_size=128, shuffle=False)
         else:
             raise ValueError("Invalid type")
         
         # Get the posterior embeddings for the data 
         self.model.eval()
-        y1_labels = []
-        y2_labels = []
-        y3_labels = []
-        d_labels = []
         zy1_samples = []
         zy2_samples = []
         zy3_samples = []
@@ -286,7 +239,7 @@ class StDIVA:
                 d = d.double()
                 
                 y = [y1, y2, y3]
-                zx, zys, zd = self.model.get_posterior(x)
+                zx, zys, zd = self.model.model.get_posterior(x)
 
                 # Detach, move to CPU and convert to numpy
                 y1 = y1.detach().cpu().numpy()
@@ -297,21 +250,13 @@ class StDIVA:
                 zx = zx.detach().cpu().numpy()
                 zys = [zy.detach().cpu().numpy() for zy in zys]
 
-                # Append the labels
-                y1_labels.append(y1)
-                y2_labels.append(y2)
-                y3_labels.append(y3)
-                d_labels.append(d)
+                # Append the embeddings to the list
                 zd_samples.append(zd)
                 zy1_samples.append(zys[0])
                 zy2_samples.append(zys[1])
                 zy3_samples.append(zys[2])
                 zx_samples.append(zx)
                     
-        y1_labels = np.concatenate(y1_labels, axis=0)
-        y2_labels = np.concatenate(y2_labels, axis=0)
-        y3_labels = np.concatenate(y3_labels, axis=0)
-        d_labels = np.concatenate(d_labels, axis=0)
         zd_samples = np.concatenate(zd_samples, axis=0)
         zy1_samples = np.concatenate(zy1_samples, axis=0)
         zy2_samples = np.concatenate(zy2_samples, axis=0)
@@ -319,13 +264,28 @@ class StDIVA:
         zx_samples = np.concatenate(zx_samples, axis=0)
         
         # Return the embeddings 
-        return y1_labels, y2_labels, y3_labels, d_labels, zd_samples, zy1_samples, zy2_samples, \
+        return zd_samples, zy1_samples, zy2_samples, \
             zy3_samples, zx_samples
+        
+    def get_labels(self, type = "full"):
+        if type == "train":
+            adata_sub = self.adata[self.train_index]
+        elif type == "val":
+            adata_sub = self.adata[self.val_index]
+        elif type == "full":
+            adata_sub = self.adata
+            
+        y1_labels = adata_sub.obs[self.label_key_y1].values
+        y2_labels = adata_sub.obsm["spatial"]
+        y3_labels = adata_sub.obs[self.label_key_y3].values
+        d_labels = adata_sub.obs["batch"].values
+        
+        return y1_labels, y2_labels, y3_labels, d_labels
         
     def reduce_embedding(self, embedding, method = "pca"):
         if method == "pca":
             pca = PCA(n_components=2)
-            return pca.fit_transform(embedding  )
+            return pca.fit_transform(embedding)
         elif method == "umap":
             reducer = umap.UMAP(n_components=2)
             return reducer.fit_transform(embedding)
