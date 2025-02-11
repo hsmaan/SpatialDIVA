@@ -981,7 +981,7 @@ class LitSpatialDIVA(L.LightningModule):
         y1 = y1.to(self.device).double()
         y2 = y2.to(self.device).double()
         y3 = y3.to(self.device).double()
-        d = d.to(self.device).unsqueeze(dim=-1).double()
+        d = d.to(self.device).double()
         spo_var = spo_var.to(self.device).double()
 
         # If your spatial covariate is y2 or spo_var (adjust indexing as appropriate)
@@ -1074,7 +1074,7 @@ class LitSpatialDIVA(L.LightningModule):
         y1 = y1.to(self.device).double()
         y2 = y2.to(self.device).double()
         y3 = y3.to(self.device).double()
-        d = d.to(self.device).unsqueeze(dim=-1).double()
+        d = d.to(self.device).double()
         spo_var = spo_var.to(self.device).double()
 
         if self.model.spatial_covar_number == 1:
@@ -1159,7 +1159,7 @@ class LitSpatialDIVA(L.LightningModule):
         y1 = y1.to(self.device)
         y2 = y2.to(self.device)
         y3 = y3.to(self.device)
-        d = d.to(self.device).unsqueeze(dim=-1)
+        d = d.to(self.device)
         spo_var = spo_var.to(self.device)
 
         if self.model.spatial_covar_number == 1:

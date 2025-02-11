@@ -4,3 +4,4 @@ __pycache__
 *.log
 *.png 
 lightning_logs
+*.vscode

@@ -185,7 +185,8 @@ class StDIVA:
             spatial_positions_tensor
         )
         
-        self.train_loader = torch.utils.data.DataLoader(self.train_dataset, batch_size=128, shuffle=True)
+        self.train_loader = torch.utils.data.DataLoader(self.train_dataset, batch_size=128, 
+                                                        shuffle=True, num_workers=0)
         
         # Do the same for the validation data
         if val_index is not None:
@@ -229,7 +230,9 @@ class StDIVA:
                 spatial_positions_val_tensor
             )
             
-            self.val_loader = torch.utils.data.DataLoader(self.val_dataset, batch_size=128, shuffle=False)
+            self.val_loader = torch.utils.data.DataLoader(
+                self.val_dataset, batch_size=128, shuffle=False, num_workers=0
+            )
             
         print("Done!")
      
@@ -281,8 +284,7 @@ class StDIVA:
                 y2 = y2.double()
                 y3 = y3.double()
                 d = d.double()
-                d = d.unsqueeze(dim=-1)
-
+                
                 y = [y1, y2, y3]
                 zx, zys, zd = self.model.get_posterior(x)
 
