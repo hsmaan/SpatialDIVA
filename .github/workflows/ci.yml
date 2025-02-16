@@ -17,25 +17,17 @@ jobs:
         python-version: ["3.9", "3.9", "3.10", "3.11"]
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Checkout code
+        uses: actions/checkout@v2      
+      - name: Set-up python
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Install Poetry
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-
-      - name: Configure Poetry Path (Windows)
-        if: runner.os == 'Windows'
-        run: echo "C:\Users\runneradmin\AppData\Roaming\Python\Scripts" >> $GITHUB_PATH
-
-      - name: Configure Poetry Path (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Install Dependencies
+      - name: Run image
+        uses: abatilo/actions-poetry@v2.0.0
+        with:
+          poetry-version: ${{ matrix.poetry-version }}
+      - name: Poetry update
+        run: poetry update
+      - name: Poetry install
         run: poetry install
