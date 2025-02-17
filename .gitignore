@@ -5,3 +5,4 @@ __pycache__
 *.png 
 lightning_logs
 *.vscode
+poetry.lock
