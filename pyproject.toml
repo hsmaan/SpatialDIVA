@@ -21,7 +21,7 @@ faiss-cpu = "1.9.0"
 scib-metrics = "^0.5.1"
 jupyter = "^1.0.0"
 pytorch-lightning = "^2.0.0"
-Cython = "0.29.36"
+Cython = "<=0.29.36"
 
 [build-system]
 requires = ["poetry-core"]
