@@ -20,8 +20,7 @@ faiss-cpu = "1.9.0"
 scib-metrics = "^0.5.1"
 jupyter = "^1.0.0"
 pytorch-lightning = "^2.0.0"
-pip:
-    scikit-learn = "^0.24"
+scikit-learn = "^0.22"
 
 [build-system]
 requires = ["poetry-core", "setuptools", "wheel", "cython"]
