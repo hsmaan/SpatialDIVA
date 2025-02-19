@@ -14,7 +14,7 @@ This repository contains code for the SpatialDIVA method, associated preprocessi
 - [Usage](#usage)
 - [Tutorials](#tutorials)
 - [Preprocessing](#preprocessing)
-- [Evaluation code](#evaluation)
+- [Paper evaluation code](#paper-evaluation-code)
 - [Citation](#citation)
 
 ## Installation
@@ -40,13 +40,23 @@ Coming soon!
 
 Coming soon!
 
+## Tutorials 
+
+The following notebooks offer more in-depth tutorials on how to use the SpatialDIVA model for relevant analyses of histopathology and spatial transcriptomics data:
+
+1. #### Factor covariance analysis with SpatialDIVA - `spatialdiva/tutorials/01_colorectal_cancer_spdiva_analysis.ipynb`
+
+2. #### Conditional generation analysis with SpatialDIVA - Coming soon!
+
+3. #### Tumor annotation and subtyping with SpatialDIVA - Coming soon!
+
 ## Preprocessing
 
 The preprocessed data for Valdeolivas et al. (colorectal cancer) and Zhou et al. (pancreatic cancer) contains spot-aligned features for histopathology imaging extracted using the UNI foundation model (https://github.com/mahmoodlab/UNI). 
 
 Code for preprocessing in-house datasets in a similar manner, as well as environment and installation information is available in the `spatialdiva/preprocessing` directory.
 
-## Evaluation
+## Paper evaluation code
 
 Coming soon!
 
