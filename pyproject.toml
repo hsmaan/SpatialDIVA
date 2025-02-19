@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "SpatialDIVA"
-version = "0.1.0"
-description = ""
+version = "0.1b0"
+description = "Multi-modal Disentanglement of Spatial Transcriptomics and Histopathology Imaging"
 authors = ["hsmaan <hassaan.maan@mail.utoronto.ca>"]
 readme = "README.md"
 
