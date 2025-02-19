@@ -1,9 +1,8 @@
 [tool.poetry]
 name = "SpatialDIVA"
-version = "0.1b0"
+version = "0.1b1"
 description = "Multi-modal Disentanglement of Spatial Transcriptomics and Histopathology Imaging"
 authors = ["hsmaan <hassaan.maan@mail.utoronto.ca>"]
-readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
