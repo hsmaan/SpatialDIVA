@@ -45,12 +45,18 @@ This dataset can be downloaded from Figshare at https://figshare.com/s/e12b576b1
 
 ```
 mkdir spatialdiva/data
+unzip valdeolivas_processed.zip
 mv valdeolivas_processed spatialdiva/data
 ```
 
 #### Zhou et al. - pancreatic ductal adenocarcinoma (https://www.nature.com/articles/s41588-022-01157-1)
 
-Coming soon!
+Similar to the Valdeolivas et al. data, the data can be downloaded from Figshare https://figshare.com/s/1cd18b65fc0cd7079e41. After downloaded, the data can be moved to the appropriate directory:
+
+```
+unzip zhou_processed.zip
+mv zhou_processed spatialdiva/data
+```
 
 ## Usage
 
