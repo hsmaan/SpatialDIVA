@@ -8,6 +8,8 @@
 
 This repository contains code for the SpatialDIVA method, associated preprocessing, and evaluations performed in the manuscript - "Multi-modal disentanglement of spatial transcriptomics and histopathology imaging".
 
+If you use our work, please consider [citing the preprint](#citation).
+
 ## Table of Contents
 
 - [Installation](#installation)
@@ -120,4 +122,8 @@ Coming soon!
 
 ## Citation
 
-TBD 
+*Multi-Modal Disentanglement of Spatial Transcriptomics and Histopathology Imaging*
+
+Hassaan Maan, Zongliang Ji, Elliot Sicheri, Tiak Ju Tan, Alina Selega, Ricardo Gonzalez, Rahul G. Krishnan, Bo Wang, Kieran R. Campbell
+
+bioRxiv 2025.02.19.638201; doi: https://doi.org/10.1101/2025.02.19.638201  
