@@ -13,6 +13,7 @@ from lightning.pytorch import Trainer
 from sklearn.decomposition import PCA
 import umap
 import anndata as ann 
+from scvi.distributions import NegativeBinomial
 
 from utils.diva_data import adata_process
 from models import SpatialDIVA, LitSpatialDIVA
@@ -108,7 +109,7 @@ class StDIVA:
         self.val_loader = None
         
     def add_data(self, adata, train_index = None, val_index = None, label_key_y1 = None, 
-                 label_key_y2 = None, label_key_y3 = None, hist_col_key = "UNI"):
+                 label_key_y2 = None, label_key_y3 = None, hist_col_key = "UNI", hvg = True):
         
         print("Processing data..")
         self.label_key_y1 = label_key_y1
@@ -141,7 +142,10 @@ class StDIVA:
         print("Creating dataloaders..")
             
         # Create the train and val dataloaders
-        count_data = np.asarray(self.adata[:, self.adata.var["highly_variable"]].X)
+        if hvg is True:
+            count_data = np.asarray(self.adata[:, self.adata.var["highly_variable"]].X)
+        else:
+            count_data = np.asarray(self.adata.X)
         hist_cols = [col for col in self.adata.obs.columns if hist_col_key in col]
         hist_data = self.adata.obs[hist_cols].values
         
@@ -191,6 +195,8 @@ class StDIVA:
         
         self.val_loader = torch.utils.data.DataLoader(self.val_dataset, batch_size=128, 
                                                       shuffle=False, num_workers=0)
+        
+        print("Data processing complete!")
      
     def train(self, max_epochs = 100, early_stopping = True, patience = 10):
         
@@ -211,13 +217,22 @@ class StDIVA:
     def load_model(self, path):
         self.model.load_state_dict(torch.load(path))
               
-    def get_embeddings(self, type = "full"):
+    def get_embeddings(self, type = "full", sample_number = 1000):
         if type == "train":
             loader = torch.utils.data.DataLoader(self.train_dataset, batch_size=128, shuffle=False)
         elif type == "val":
             loader = torch.utils.data.DataLoader(self.val_dataset, batch_size=128, shuffle=False)
         elif type == "full":
             loader = torch.utils.data.DataLoader(self.full_datasets, batch_size=128, shuffle=False)
+        elif type == "sample":
+            sample_dataset = torch.utils.data.Subset(
+                self.full_datasets, 
+                np.random.choice(np.arange(self.full_datasets.tensors[0].shape[0]),
+                sample_number, 
+                replace=False)
+            )
+            batch_size = 128 if sample_number > 128 else sample_number
+            loader = torch.utils.data.DataLoader(sample_dataset, batch_size=batch_size, shuffle=False)
         else:
             raise ValueError("Invalid type")
         
@@ -292,7 +307,97 @@ class StDIVA:
         else:
             raise ValueError("Invalid method")
         
-        
+    def conditional_generation(self, covariate_num, num_samples = 1000):
+        # Extract the samples for all covariates 
+        zd_samples, zy1_samples, zy2_samples, zy3_samples, \
+            zx_samples = self.get_embeddings(type = "sample", sample_number = num_samples)
+
+        # Zero out samples for all but the covariate of interest
+        if covariate_num == 1:
+            zy2_samples = np.zeros_like(zy2_samples)
+            zy3_samples = np.zeros_like(zy3_samples)
+            zd_samples = np.zeros_like(zd_samples)
+            zx_samples = np.zeros_like(zx_samples)
+        elif covariate_num == 2:
+            zy1_samples = np.zeros_like(zy1_samples)
+            zy3_samples = np.zeros_like(zy3_samples)
+            zd_samples = np.zeros_like(zd_samples)
+            zx_samples = np.zeros_like(zx_samples)
+        elif covariate_num == 3:
+            zy1_samples = np.zeros_like(zy1_samples)
+            zy2_samples = np.zeros_like(zy2_samples)
+            zd_samples = np.zeros_like(zd_samples)
+            zx_samples = np.zeros_like(zx_samples)
+        else:
+            raise ValueError("Invalid covariate number - must be 1, 2, or 3")
     
+        # Create a dataloader with the modified embeddings
+        dataset = torch.utils.data.TensorDataset(
+            torch.from_numpy(zx_samples),
+            torch.from_numpy(zy1_samples),
+            torch.from_numpy(zy2_samples),
+            torch.from_numpy(zy3_samples),
+            torch.from_numpy(zd_samples)
+        )
+        batch_size = 128 if num_samples > 128 else num_samples
+        loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False)
         
+        # Generate the gaussian and negative binomial parameters
+        gauss_mu_params = []
+        gauss_logvar_params = []
         
+        negbin_mu_params = []
+        negbin_theta_params = []
+        
+        with torch.no_grad():
+            for batch in loader:
+                zx, zy1, zy2, zy3, zd = batch
+                zx = zx.double()
+                zy1 = zy1.double()
+                zy2 = zy2.double()
+                zy3 = zy3.double()
+                zd = zd.double()
+                
+                zy_cond_full = torch.cat([zy1, zy2, zy3], dim=1)
+                
+                mu_gauss, logvar_gauss, mu_negbin, theta_negbin = self.model.model.px(
+                    zx, zd, zy_cond_full
+                )
+                
+                # Detach, move to CPU and convert to numpy
+                mu_gauss = mu_gauss.detach().cpu().numpy()
+                logvar_gauss = logvar_gauss.detach().cpu().numpy()
+                
+                mu_negbin = mu_negbin.detach().cpu().numpy()
+                theta_negbin = theta_negbin.detach().cpu().numpy()
+                
+                # Append the parameters to the list
+                gauss_mu_params.append(mu_gauss)
+                gauss_logvar_params.append(logvar_gauss)
+                
+                negbin_mu_params.append(mu_negbin)
+                negbin_theta_params.append(theta_negbin)
+                
+        # Concatenate the parameters
+        gauss_mu_params = np.concatenate(gauss_mu_params, axis=0)
+        gauss_logvar_params = np.concatenate(gauss_logvar_params, axis=0)
+        
+        negbin_mu_params = np.concatenate(negbin_mu_params, axis=0)
+        negbin_theta_params = np.concatenate(negbin_theta_params, axis=0)
+        
+        # Reconvert negbin paramters to torch
+        negbin_mu_params = torch.from_numpy(negbin_mu_params)
+        negbin_theta_params = torch.from_numpy(negbin_theta_params)
+        
+        # Create a negative binomial distribution object
+        negbin_zy_cond = NegativeBinomial(mu=negbin_mu_params, theta=negbin_theta_params)
+        
+        # sample from the negative binomial distributions
+        negbin_sample = negbin_zy_cond.sample()
+        
+        # Convert sample to numpy
+        negbin_sample = negbin_sample.detach().cpu().numpy()
+        
+        # Return the parameters and samples
+        return gauss_mu_params, gauss_logvar_params, negbin_mu_params, negbin_theta_params, \
+            negbin_sample

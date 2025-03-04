@@ -121,7 +121,10 @@ def adata_process(
 
     # Perform hvg selection (concatenate anndatas to do this)
     adata_concat = ann.concat(adata_list)
-    sc.pp.highly_variable_genes(adata_concat, n_top_genes=n_top_genes)
+    if normalize:
+        sc.pp.highly_variable_genes(adata_concat, n_top_genes=n_top_genes, flavor="seurat")
+    else:
+        sc.pp.highly_variable_genes(adata_concat, n_top_genes=n_top_genes, flavor="seurat_v3")
     hvg = adata_concat.var.highly_variable
     for adata in adata_list:
         adata.var["highly_variable"] = hvg
