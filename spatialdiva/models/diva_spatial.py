@@ -238,6 +238,7 @@ class qzx(nn.Module):
             modules.append(
                 nn.Sequential(
                     nn.Linear(latent_dim_concat, hidden_dim),
+                    nn.BatchNorm1d(hidden_dim), # Stabilize the training for large count values
                     nn.ReLU()
                 )
             )
@@ -270,6 +271,7 @@ class qzd(nn.Module):
             modules.append(
                 nn.Sequential(
                     nn.Linear(latent_dim_concat, hidden_dim),
+                    nn.BatchNorm1d(hidden_dim), # Stabilize the training for large count values
                     nn.ReLU()
                 )
             )
@@ -302,6 +304,7 @@ class qzy(nn.Module):
             modules.append(
                 nn.Sequential(
                     nn.Linear(latent_dim_concat, hidden_dim),
+                    nn.BatchNorm1d(hidden_dim), # Stabilize the training for large count values
                     nn.ReLU()
                 )
             )
