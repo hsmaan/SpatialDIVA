@@ -121,7 +121,18 @@ def adata_process(
 
     # Perform hvg selection (concatenate anndatas to do this)
     adata_concat = ann.concat(adata_list)
-    sc.pp.highly_variable_genes(adata_concat, n_top_genes=n_top_genes)
+    if normalize:
+        sc.pp.highly_variable_genes(
+            adata_concat, 
+            n_top_genes=n_top_genes,
+            flavor="seurat"
+        )
+    else:
+        sc.pp.highly_variable_genes(
+            adata_concat, 
+            n_top_genes=n_top_genes,
+            flavor="seurat_v3"
+        )
     hvg = adata_concat.var.highly_variable
     for adata in adata_list:
         adata.var["highly_variable"] = hvg
@@ -148,10 +159,17 @@ def adata_process(
     # Perform neighborhood PCA averaging (for SpatialDIVA) - using both
     # the count and UNI features
     for i, adata in enumerate(adata_list):
-        # Get the PCA reduction of the count data
-        sc.pp.pca(adata)
-        count_pc = adata.obsm["X_pca"]
-
+        # Get the PCA reduction of the count data - log normalize if not done
+        if not normalize:
+            adata_copy = adata.copy()
+            sc.pp.normalize_total(adata_copy, target_sum=1e4)
+            sc.pp.log1p(adata_copy)
+            sc.pp.pca(adata_copy)
+            count_pc = adata_copy.obsm["X_pca"]
+        else:
+            sc.pp.pca(adata)
+            count_pc = adata.obsm["X_pca"]
+            
         # Get the PCA reduction of the UNI data
         obs_columns = [col for col in adata.obs.columns if "UNI" in col]
         uni_data = adata.obs[obs_columns].values
